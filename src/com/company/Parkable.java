@@ -1,7 +1,7 @@
 package com.company;
 
-public interface IVehicle {
+public interface Parkable {
     int getSize();
-    String getType();
+    VehicleTypes getType();
     String getId();
 }

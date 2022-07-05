@@ -3,103 +3,98 @@ package com.company;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 
 public class CarPark {
     private final int totalSpaces;
-    private final int vanLimit;
-    private final int carLimit;
-    private final int motorcycleLimit;
-    private final String[] vehicleTypes = {"motorcycle", "car", "van"};
-    private final ArrayList<String> carSpaces = new ArrayList<String>();
-    private final ArrayList<String> motorcycleSpaces = new ArrayList<String>();
-    private final ArrayList<String> vanSpaces = new ArrayList<String>();
-    private final ArrayList<IVehicle> parkedVehicles = new ArrayList<IVehicle>();
-    private final HashMap<String, ArrayList<String>> overview = new HashMap<>();
+    private final int regularSpaceLimit;
+    private final int motorcycleSpaceLimit;
+    private final List<Parkable> motorcycleSpaces = new ArrayList<>();
+    private final List<Parkable> regularSpaces = new ArrayList<>();
 
-
-    public CarPark(int vanLimit, int carLimit, int motorcycleLimit) {
-        this.vanLimit = vanLimit;
-        this.carLimit = carLimit;
-        this.motorcycleLimit = motorcycleLimit;
-        this.totalSpaces = vanLimit + carLimit + motorcycleLimit;
-        overview.put("motorcycle", motorcycleSpaces);
-        overview.put("car", carSpaces);
-        overview.put("van", vanSpaces);
+    public CarPark(int carLimit, int motorcycleLimit) {
+        this.regularSpaceLimit = carLimit;
+        this.motorcycleSpaceLimit = motorcycleLimit;
+        this.totalSpaces = carLimit + motorcycleLimit;
     }
 
     public int getTotalSpaces() {
         return totalSpaces;
     }
 
-    public HashMap<String, ArrayList<String>> getOverview() {
-        return overview;
+    public int getFreeRegularSpaceCount(){
+        return regularSpaceLimit - regularSpaces.size();
     }
 
-    public ArrayList<IVehicle> getParkedVehicles() {
-        return parkedVehicles;
+    public int getFreeMotorcycleSpaceCount(){
+        return motorcycleSpaceLimit - motorcycleSpaces.size();
     }
-// HELPERS
-    private ArrayList<String> getSpaces(String vehicleType) {
-        if (vehicleType.equals("motorcycle")) {
+
+    private List<Parkable> getSpaces(VehicleTypes vehicleType) {
+        if (vehicleType == VehicleTypes.MOTORCYCLE) {
             return motorcycleSpaces;
-        } else if (vehicleType.equals("car")) {
-            return carSpaces;
+        } else {
+            return regularSpaces;
         }
-        return vanSpaces;
     }
 
-    private int getLimit(String vehicleType) {
-        if (vehicleType.equals("motorcycle")) {
-            return motorcycleLimit;
-        } else if (vehicleType.equals("car")) {
-            return carLimit;
+    private int getLimit(VehicleTypes vehicleType) {
+        if (vehicleType == VehicleTypes.MOTORCYCLE) {
+            return motorcycleSpaceLimit;
+        } else {
+            return regularSpaceLimit;
         }
-        return vanLimit;
     }
 
-    public int getNumberOfFreeSpaces(String vehicleType) {
-        ArrayList<String> spaces = getSpaces(vehicleType);
+    private int getVehicleCount(VehicleTypes vehicleType, List<Parkable> spaces){
+        return spaces.stream().reduce(0, (acc, cur) -> cur.getType() == vehicleType ? acc + 1 : acc, Integer::sum );
+    }
+
+    public int getMotorcycleCount() {
+        return getVehicleCount(VehicleTypes.MOTORCYCLE, motorcycleSpaces) + getVehicleCount(VehicleTypes.MOTORCYCLE, regularSpaces);
+    }
+
+    public int getCarCount() {
+        return getVehicleCount(VehicleTypes.CAR, regularSpaces);
+    }
+
+    public int getVanCount() {
+        return getVehicleCount(VehicleTypes.VAN, regularSpaces) / VehicleTypes.VAN.getSize();
+    }
+
+    private int getNumberOfFreeSpaces(VehicleTypes vehicleType) {
+        List<Parkable> spaces = getSpaces(vehicleType);
         return getLimit(vehicleType) - spaces.size();
     }
 
-    public int getNumberOfFreeSpaces() {
-        int freeSpaces = 0;
-        for (String vehicleType : vehicleTypes) {
-            freeSpaces += getNumberOfFreeSpaces(vehicleType);
-        }
-        return freeSpaces;
+    private int getNumberOfFreeSpaces() {
+        return totalSpaces - motorcycleSpaces.size() - regularSpaces.size();
     }
 
-
-    public void parkVehicle(IVehicle vehicle) {
+    public boolean parkVehicle(Parkable vehicle) {
         if (getNumberOfFreeSpaces() == 0) {
-            System.out.println("Car Park is full");
-            return;
+            return false;
         }
 
-        if (getNumberOfFreeSpaces(vehicle.getType()) > 0) {
-            ArrayList<String> spaces = getSpaces(vehicle.getType());
-            spaces.add(vehicle.getId());
-            parkedVehicles.add(vehicle);
-            System.out.println("Your Vehicle with id " + vehicle.getId() + " has been parked");
-            return;
+        VehicleTypes vehicleType = vehicle.getType();
+        int freeSpaces = getNumberOfFreeSpaces(vehicleType);
+        List<Parkable> spaces = getSpaces(vehicleType);
+
+        if(vehicleType.canParkInAnySpace() && motorcycleSpaces.size() == motorcycleSpaceLimit){
+            spaces = regularSpaces;
+            freeSpaces = getNumberOfFreeSpaces();
         }
 
-        for (String vehicleType : vehicleTypes) {
-            int freeSpaces = getNumberOfFreeSpaces(vehicleType);
-            if (freeSpaces >= vehicle.getSize()) {
-                ArrayList<String> spaces = getSpaces(vehicleType);
-                int counter = vehicle.getSize();
-                while (counter != 0) {
-                    spaces.add(vehicle.getId());
-                    counter--;
-                }
-                parkedVehicles.add(vehicle);
-                System.out.println("Your Vehicle with id " + vehicle.getId() + " has been parked");
-                return;
+        if (freeSpaces >= vehicle.getSize()) {
+            int counter = vehicle.getSize();
+            while (counter != 0) {
+                spaces.add(vehicle);
+                counter--;
             }
+            return true;
         }
-        System.out.println("Your Vehicle with id " + vehicle.getId() + " has not been parked");
+
+       return false;
     }
 
 
